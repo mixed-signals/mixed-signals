@@ -1,117 +1,66 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Lib
-    ( someFunc) where
+{-# LANGUAGE UndecidableInstances #-}
+module Lib where
+
 import qualified Prelude
-import Data.Array.Accelerate-- (Exp(..),Acc, Array(..),DIM1,DIM2,Num,Floating,Scalar,Z,(:.))
-import Data.Array.Accelerate.Interpreter(run)
-import Debug.Trace
+import Data.Kind(Type)
+import Prelude(Double,Int,(.))
+import Data.Array.Accelerate(Acc,Array,Vector,Shape(..),(+),zipWith)
+import qualified Data.Array.Accelerate as A
+import qualified Data.Array.Accelerate.Interpreter as AI
+import GHC.TypeLits(Nat,KnownNat,natVal)
+import qualified Data.Array.Accelerate.Numeric.LinearAlgebra as LA
+import Data.Proxy(Proxy(..))
 
-sigmoid :: (Prelude.Floating e) => e -> e
-sigmoid x = 1 / (1 + exp(-x))
+data Size = ZZ | Size ::. Nat
 
-dsigmoid :: (Prelude.Num e) => e -> e
-dsigmoid y = y * (1 - y)
+class (Shape (ShapeOf size)) => ShapeSize size where
+  type ShapeOf (size :: Size) :: Type
+  shapeOf :: proxy size -> ShapeOf size
 
+instance ShapeSize 'ZZ where
+  type ShapeOf 'ZZ = A.Z
+  shapeOf _ = A.Z
 
-(<.>) :: forall e. Num e => Acc (Array DIM2 e) -> Acc (Array DIM2 e) -> Acc (Array DIM2 e)
-xs <.> ys = result
+instance forall size n. (KnownNat n, ShapeSize size) => ShapeSize (size ::. n) where
+  type ShapeOf (size ::. n) = (ShapeOf size) A.:. Int
+  shapeOf _ = outerShape A.:. n
         where
-            -- xs :: n x m
-            -- ys :: m x p
-            (Z :. n :. m) = unlift (shape xs) :: Z :. Exp Int :. Exp Int
-            (Z :. _ :. p) = unlift (shape ys) :: Z :. Exp Int :. Exp Int
-            -- xs' :: n x m x p
-            -- ys' :: n x m x p
-            xs' = replicate (lift (Z :. All :. All :. p)) xs
-            ys' = replicate (lift (Z :. n :. All :. All)) ys
-            -- zs :: n x m x p
-            zs = zipWith (*) xs' ys'
-            -- transposed :: n x p x m
-            transposed = backpermute (lift (Z :. n :. p :. m)) permutation zs :: Acc (Array DIM3 e)
-                where
-                    permutation :: Exp DIM3 -> Exp DIM3
-                    permutation sh' = sh
-                        where
-                            Z :. ni :. pi :. mi = unlift sh'
-                            sh = lift (Z :. ni :. mi :. pi :: Z :. Exp Int :. Exp Int :. Exp Int)
-            -- result :: n x p
-            result = fold (+) 0 transposed
+            outerShape = shapeOf (Proxy :: Proxy size)
+            n = Prelude.fromInteger (natVal (Proxy :: Proxy n)) :: Int
 
-classify :: (Num e, Ord e) => Exp e -> Exp e
-classify x = cond ((x * 3 - 8) < 0) 0 1
+data Sized (size :: Size) = Sized { getArray :: Acc (Array (ShapeOf size) Double) }
 
+instance (Prelude.Show (Array (ShapeOf size) Double), Shape (ShapeOf size)) => Prelude.Show (Sized size) where
+  show (Sized arr) = Prelude.show arr
 
--- Exp DIM2 == Exp (Z :. Int :. Int)
--- Z :. Exp Int :. Exp Int
+type SizedVector n = (KnownNat n) => Sized ('ZZ '::. n)
+type SizedMatrix n m = (KnownNat n, KnownNat m) => Sized ('ZZ '::. n '::. m)
 
-colVector :: Elt e => Acc (Array DIM1 e) -> Acc (Array DIM2 e)
-colVector x = reshape sh x
-    where
-        (Z :. n) = unlift (shape x) :: Z :. Exp Int
-        sh = lift (Z  :. n :. (1 :: Exp Int)) :: Exp DIM2
+fromList :: forall size . ShapeSize (size :: Size) => [Double] -> Sized size
+fromList = Sized . A.use . A.fromList shape
+  where shape = shapeOf (Proxy :: Proxy (size :: Size))
 
-rowVector :: Elt e => Acc (Array DIM1 e) -> Acc (Array DIM2 e)
-rowVector x = reshape sh x
-    where
-        (Z :. n) = unlift (shape x) :: Z :. Exp Int
-        sh = lift (Z :. (1 :: Exp Int) :. n) :: Exp DIM2
+(.+.) :: SizedVector n -> SizedVector n -> SizedVector n
+Sized v .+. Sized w = Sized (zipWith (+) v w)
 
-square :: Prelude.Num e => e -> e
-square x = x * x
+run :: ShapeSize size => Sized size -> Array (ShapeOf size) Double
+run = runUsing AI.run
 
+runUsing
+  :: (ShapeSize size, A.Arrays (Array (ShapeOf size) Double))
+  => (Acc (Array (ShapeOf size) Double) -> Array (ShapeOf size) Double)
+  -> Sized size
+  -> Array (ShapeOf size) Double
+runUsing runner (Sized arr) = runner arr
 
-train :: (Num e, Elt e, Floating e, FromIntegral Int e) => Exp e -> Acc (Array DIM1 e) -> Acc (Array DIM2 e) -> Acc (Array DIM2 e) -> Acc (Array DIM1 e) -> (Exp e, Acc (Array DIM2 e), Acc (Array DIM2 e))
-train η x w1 w2 t
-    = trace (Prelude.show $ run dy)
-    $ trace (Prelude.show $ run dx4)
-    $ trace (Prelude.show $ run dw2)
-    $ trace (Prelude.show $ run dx3)
-    $ trace (Prelude.show $ run dx2)
-    $ trace (Prelude.show $ run dw1)
-    $ trace (Prelude.show $ run dx1) (err, w1', w2')
-    where
-        -- w1 :: n x m
-        -- x :: n
-        x1 = rowVector x
-        x2 = x1 <.> w1
-        -- x2 :: 1 x m
-        x3 = map sigmoid x2
-        -- x3 :: 1 x m
-        -- w2 :: m x p
-        x4 = x3 <.> w2
-        -- x4 :: 1 x p
-        x5 = map sigmoid x4
+-- (<#) :: SizedVector n -> SizedMatrix n m -> SizedVector m
+-- Sized v <# Sized m = _
 
-        y = reshape (shape t) x5
-        z = map (\v -> v / fromIntegral (size y)) $ zipWith (-) y t
-        err = 1/2 * the (fold (+) 0 $ map square z)
-        dy = rowVector z
-        dx4 = zipWith (*) (map dsigmoid x5) dy
-        dw2 = transpose x3 <.> dx4
-        dx3 = dx4 <.> transpose w2
-        dx2 = zipWith (*) (map dsigmoid x3) dx3
-        dw1 = transpose x1 <.> dx2
-        dx1 = dx2 <.> transpose w1
-        update = zipWith (\w dw -> w - η*dw)
-        w1' = update w1 dw1
-        w2' = update w2 dw2
-
-testNetwork :: Acc (Scalar Double)
-testNetwork
-    = trace (Prelude.show $ run w1' )
-    $ trace (Prelude.show $ run w2' )
-    $ unit err
-    where
-        x = use (fromList (Z :. 1) [3]) :: Acc (Array DIM1 Double)
-        w1 = use (fromList (Z :. 1 :. 2) [0.3, 0.3])
-        w2 = use (fromList (Z :. 2 :. 1) [0.3, 0.3])
-        t = map classify x -- t :: Z :. 1
-        lr = 1.0e-2
-        (err, w1', w2') = train lr x w1 w2 t
-
-
-someFunc :: Prelude.IO ()
-someFunc = Prelude.print (run testNetwork)
