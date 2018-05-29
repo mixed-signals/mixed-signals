@@ -11,7 +11,7 @@ import qualified Prelude
 import Dependent.Size(Size(..), ShapeSize(..),shapeOf)
 import Prelude(Double,Int,(.))
 import qualified Data.Array.Accelerate as Acc
-import Data.Array.Accelerate(Acc,Array,Vector,Shape(..),(+),zipWith,Exp,(:.)(..),Z(..),All(..))
+import Data.Array.Accelerate(Acc,Array,Vector,Shape(..),(+),Exp,(:.)(..),Z(..),All(..))
 import Data.Proxy(Proxy(..))
 import GHC.TypeLits(KnownNat,natVal)
 import Data.Kind(Type)
@@ -21,16 +21,43 @@ import qualified Data.Array.Accelerate.Numeric.LinearAlgebra as BLAS
 #endif
 
 
+-- | Comuptation of a Sized multi-dimensional array
 data Sized (size :: Size)
   = Sized {getArray :: Acc (Array (ShapeOf size) Double)}
 
 type SizedVector n = Sized ('ZZ '::. n)
 type SizedMatrix n m = Sized ('ZZ '::. n '::. m)
 
+-- | Sized multi-dimensional array (pre-computed)
+data Sized' (size :: Size)
+  = Sized' {getArray' :: Array (ShapeOf size) Double}
+
+type SizedVector' n = Sized' ('ZZ '::. n)
+type SizedMatrix' n m = Sized' ('ZZ '::. n '::. m)
+
+
+generate :: forall size.
+  (ShapeSize size)
+    => (Exp (ShapeOf size) -> Exp Double)
+    -> Sized size
+generate f = result
+  where
+    result = Sized (Acc.generate shape f) :: Sized size
+    shape = Acc.lift (shapeOf result) :: Exp (ShapeOf size)
+
+map :: ShapeSize size => (Exp Double -> Exp Double) -> Sized size -> Sized size
+map f (Sized x) = Sized (Acc.map f x)
+
+use :: ShapeSize size => Sized' size -> Sized size
+use (Sized' array) = Sized (Acc.use array)
+
+zipWith :: ShapeSize size => (Exp Double -> Exp Double -> Exp Double) -> Sized size -> Sized size -> Sized size
+zipWith f (Sized x) (Sized y) = Sized (Acc.zipWith f x y)
+
 -- [] -> Sized (ZZ ::. 3 ::. 4)
-fromList :: forall size . ShapeSize (size :: Size) => [Double] -> Sized size
+fromList :: forall size . ShapeSize (size :: Size) => [Double] -> Sized' size
 fromList xs
-  | vol Prelude.== len = (Sized . Acc.use . Acc.fromList shape) xs
+  | vol Prelude.== len = (Sized' . Acc.fromList shape) xs
   | Prelude.otherwise = Prelude.error
     (          "Length of list ("
     Prelude.++ Prelude.show len
@@ -46,7 +73,7 @@ fromList xs
   vol   = volume proxy
 
 (.+.) :: ShapeSize size => Sized size -> Sized size -> Sized size
-Sized v .+. Sized w = Sized (zipWith (+) v w)
+Sized v .+. Sized w = Sized (Acc.zipWith (+) v w)
 -- lift1 :: (Exp sh :. Exp Int -> Exp sh :. Exp Int) -> (Exp (sh :. Int) -> Exp (sh :. Int))
 (><)
   :: forall n m k

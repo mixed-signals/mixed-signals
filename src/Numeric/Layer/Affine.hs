@@ -9,12 +9,20 @@ import Numeric.Layer
 import Numeric.Vector.Sized
 import GHC.TypeLits
 
-data Affine (n :: Nat) (m :: Nat) = Affine (SizedMatrix n m) (SizedVector m)
+data Affine (n :: Nat) (m :: Nat) = Affine (SizedMatrix' n m) (SizedVector' m)
 
 instance (KnownNat n, KnownNat m) => Layer (Affine n m) where
   type Inputs (Affine n m) = ZZ '::. n
   type Outputs (Affine n m) = ZZ '::. m
-  forward (Affine ws b) x = affine ws b x
+  type Tape (Affine n m) = Sized (ZZ ::. n)
+  type Gradient (Affine n m) = Affine n m
+  forward (Affine ws b) x = (affine (use ws) (use b) x, x)
+  backward (Affine ws b) x dy = undefined
+  -- ((Affine dw db), dx)
+  --   where
+  --     dx = _
+  --     dw = _
+  --     db = dy
 
 affine
   :: (KnownNat n, KnownNat m)

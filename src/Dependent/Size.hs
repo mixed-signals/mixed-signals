@@ -15,7 +15,11 @@ import Data.Proxy(Proxy(..))
 infixl 6 ::.
 data Size = ZZ | Size ::. Nat
 
-class (Shape (ShapeOf size)) => ShapeSize size where
+class (Shape (ShapeOf size)
+  , Acc.Lift Acc.Exp (Acc.Plain (ShapeOf size))
+  , Acc.Slice (Acc.Plain (ShapeOf size))
+  , ShapeOf size ~ Acc.Plain (ShapeOf size)
+      ) => ShapeSize size where
   type ShapeOf (size :: Size) :: Type
   shapeOf :: proxy size -> ShapeOf size
   volume :: proxy size -> Int
