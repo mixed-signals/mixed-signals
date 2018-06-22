@@ -15,13 +15,13 @@ import qualified Data.Array.Accelerate as Acc
 import Data.Array.Accelerate(Acc,Array,Double)
 import qualified Data.Array.Accelerate.Interpreter as AI
 
-run :: ShapeSize size => Sized size -> Array (ShapeOf size) Double
+run :: ShapeSize size => SizedArray size -> Array (ShapeOf size) Double
 run = runUsing AI.run
 
 runUsing
   :: (ShapeSize size, Acc.Arrays (Array (ShapeOf size) Double))
   => (Acc (Array (ShapeOf size) Double) -> Array (ShapeOf size) Double)
-  -> Sized size
+  -> SizedArray size
   -> Array (ShapeOf size) Double
 runUsing runner (Sized arr) = runner arr
 

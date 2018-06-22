@@ -30,12 +30,23 @@ dependencies:
 - accelerate
 - accelerate-blas
 - accelerate-llvm
+- accelerate-llvm-native
 
 library:
   source-dirs: src
   when:
     - condition: flag(accelerate-blas)
       cpp-options: -DACCELERATE_BLAS
+  default-extensions:
+    - KindSignatures
+    - TypeOperators
+    - TypeFamilies
+    - DataKinds
+    - GADTs
+    - MultiParamTypeClasses
+    - FlexibleContexts
+    - FlexibleInstances
+
 
 executables:
   mixed-signals-exe:

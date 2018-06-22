@@ -18,11 +18,11 @@ class (ShapeSize (Inputs layer), ShapeSize (Outputs layer)) => Layer layer where
   type Gradient layer :: Type
 
   forward :: layer
-          -> Sized (Inputs layer)
-          -> (Sized (Outputs layer), Tape layer)
+          -> SizedArray (Inputs layer)
+          -> (SizedArray (Outputs layer), Tape layer)
 
   backward :: layer
            -> Tape layer
-           -> Sized (Outputs layer)
-           -> (Gradient layer, Sized (Inputs layer))
+           -> SizedArray (Outputs layer)
+           -> (Gradient layer, SizedArray (Inputs layer))
 

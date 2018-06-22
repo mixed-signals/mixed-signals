@@ -36,7 +36,6 @@ class Monoid g => Group g where
 class Group r => Ring r where
   one :: r
   (.*.) :: r -> r -> r
-
 -- one .*. x = x = x .*. one
 
 class Ring k => Field k where
@@ -50,18 +49,18 @@ class (Field k, Group v) => Module k v where
 
 newtype Vect k v w = Vect {linear :: v -> w}
 
-
-instance ShapeSize size => Semigroup (Sized size) where
-  -- (<>) :: Sized size -> Sized size -> Sized size
-  x <> y = zipWith (+) x y
-
-instance ShapeSize size => Monoid (Sized size) where
-  -- zero :: Sized size
-  zero = generate (\_shape -> 0)
-
-instance ShapeSize size => Group (Sized size) where
-  negate v = map Acc.negate v
-
+--
+-- instance ShapeSize size => Semigroup (Sized size) where
+--   -- (<>) :: Sized size -> Sized size -> Sized size
+--   x <> y = zipWith (+) x y
+--
+-- instance ShapeSize size => Monoid (Sized size) where
+--   -- zero :: Sized size
+--   zero = generate (\_shape -> 0)
+--
+-- instance ShapeSize size => Group (Sized size) where
+--   negate v = map Acc.negate v
+--
 instance Semigroup (Acc.Exp Acc.Double) where
   a <> b = a + b
 
@@ -78,17 +77,18 @@ instance Ring (Acc.Exp Acc.Double) where
 instance Field (Acc.Exp Acc.Double) where
   recip x = Acc.recip x
 
-instance (ShapeSize size) => Module (Acc.Exp Acc.Double) (Sized size) where
-   r *. v = map (* r) v
-   v .* r = map (* r) v
+-- instance (ShapeSize size) => Module (Acc.Exp Acc.Double) (Sized size) where
+--    r *. v = map (* r) v
+--    v .* r = map (* r) v
 
 instance Field k => Category (Vect k) where
   id = Vect id
   Vect f . Vect g = Vect (f . g)
 
-class Module k v => VectorSpace k v where
-  type Basis k v :: Type
-  type (v ⊗ w) :: Type
+class (Field f, Group v)  => VectorSpace f v where
+  distribute :: f -> v -> v
 
-instance ShapeSize size => VectorSpace (Acc.Exp Double) (Sized size) where
-  type (Sized size1 ⊗ Sized size2) = Sized (TensorSize size1 size2)
+
+
+-- instance ShapeSize size => VectorSpace (Acc.Exp Double) (Sized size) where
+--   type (Sized size1 ⊗ Sized size2) = Sized (TensorSize size1 size2)
