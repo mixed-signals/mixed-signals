@@ -7,7 +7,7 @@ import Dependent.Size
 import Numeric.Vector.Sized
 import Data.Kind(Type)
 
-class (ShapeSize (Inputs layer), ShapeSize (Outputs layer)) => Layer layer where
+class Layer layer where
   type Inputs layer :: Size
   type Outputs layer :: Size
   type Tape layer :: Type

@@ -1,6 +1,4 @@
-{-# LANGUAGE StandaloneDeriving #-}
 module Numeric.Network where
-
 import Data.Kind
 import Dependent.Size
 import Numeric.Layer
@@ -24,7 +22,6 @@ instance (Show x) => Show (Network '[x]) where
   showsPrec n (Last g) = showsPrec n g
 instance (Show x, Show (Network (y:xs))) => Show (Network (x:y:xs)) where
   showsPrec n (layer :~> net) = showsPrec n layer . showString " :~> " . showsPrec n net
-
 
 infixr 0 :|>
 data Tapes (layers :: [Type]) where
@@ -98,3 +95,13 @@ train
   -> Network layers
 train net loss x t = f $ backpropagation net loss x t
   where f (gradients, _) = learn net gradients
+
+-- A network is a layer
+instance Layer (Network layers) where
+  type Inputs (Network layers) = NetworkInput layers
+  type Outputs (Network layers) = NetworkOutput layers
+  type Gradient (Network layers) = Gradients layers
+  type Tape (Network layers) = Tapes layers
+  forward = predict'
+  backward = backprop
+  applyGradient = learn
