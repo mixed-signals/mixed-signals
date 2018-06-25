@@ -26,4 +26,5 @@ instance KnownNat n => Layer (Sigmoid n) where
     where
       gradient = ()
       dx = Sized.zipWith (*) dy (Sized.map sigmoid' tape)
+  applyGradient layer _ = layer
 

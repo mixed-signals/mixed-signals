@@ -7,6 +7,7 @@ module Numeric.Layer.Affine where
 import Dependent.Size
 import Numeric.Layer
 import Numeric.Vector.Sized
+import qualified Numeric.Vector.Sized as Sized
 import GHC.TypeLits
 import Data.Array.Accelerate.LLVM.Native
 
@@ -23,6 +24,10 @@ instance (KnownNat n, KnownNat m) => Layer (Affine n m) where
       dx = use ws #> dy
       dw = runSized run (dy `outer` x)
       db = runSized run (dy)
+  applyGradient (Affine ws b) (Affine dw db)
+    = Affine
+      (runSized run $ Sized.zipWith (-) (use ws) (use dw))
+      (runSized run $ Sized.zipWith (-) (use b) (use db))
 
 affine
   :: (KnownNat n, KnownNat m)

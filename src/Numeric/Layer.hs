@@ -26,3 +26,4 @@ class (ShapeSize (Inputs layer), ShapeSize (Outputs layer)) => Layer layer where
            -> SizedArray (Outputs layer)
            -> (Gradient layer, SizedArray (Inputs layer))
 
+  applyGradient :: layer -> Gradient layer -> layer
