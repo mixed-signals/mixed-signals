@@ -12,6 +12,7 @@ import GHC.TypeLits
 import Data.Array.Accelerate.LLVM.Native
 
 data Affine (n :: Nat) (m :: Nat) = Affine (SizedMatrix' n m) (SizedVector' m)
+  deriving (Show)
 
 instance (KnownNat n, KnownNat m) => Layer (Affine n m) where
   type Inputs (Affine n m) = ZZ '::. n

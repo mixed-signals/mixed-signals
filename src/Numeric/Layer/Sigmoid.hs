@@ -7,6 +7,9 @@ import GHC.TypeLits(KnownNat,Nat)
 
 newtype Sigmoid (n :: Nat) = Sigmoid ()
 
+instance Show (Sigmoid n) where
+  showsPrec d (Sigmoid _) = showString "Sigmoid"
+
 sigmoid :: Floating x => x -> x
 sigmoid x = 1 / (1 + exp (-x))
 

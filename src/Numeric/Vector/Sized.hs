@@ -32,6 +32,9 @@ type SizedMatrix n m = SizedArray ('ZZ '::. n '::. m)
 data SizedArray' (size :: Size)
   = Sized' {getArray' :: Array (ShapeOf size) Double}
 
+instance (ShapeSize size) => Prelude.Show (SizedArray' size) where
+  showsPrec n (Sized' arr) = Prelude.showsPrec n arr
+
 type SizedVector' n = SizedArray' ('ZZ '::. n)
 type SizedMatrix' n m = SizedArray' ('ZZ '::. n '::. m)
 

@@ -6,10 +6,6 @@ module Numeric.Layer where
 import Dependent.Size
 import Numeric.Vector.Sized
 import Data.Kind(Type)
---
--- sigmoid x = 
---
--- sigmoid' y = y * (1 - y)
 
 class (ShapeSize (Inputs layer), ShapeSize (Outputs layer)) => Layer layer where
   type Inputs layer :: Size

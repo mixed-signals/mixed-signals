@@ -41,7 +41,14 @@ net = Affine ws b :~> Sigmoid () :~> Affine ws' b' :~> Last (Sigmoid ())
 
 main :: IO ()
 main = do
-  print (runUsing Native.run $ predict net (use $ fromList [-1, -2, -3]))
+  print net'
+  where
+    net' = train
+      net
+      (MeanSquaredError () :: MeanSquaredError 2)
+      (use $ fromList [-1, -2, -3])
+      (use $ fromList [1, 2])
+
   -- print (runUsing Native.run v)
   -- print (runUsing Native.run (xs >< ys))
   -- print (runUsing Native.run (xs #> v))
