@@ -31,6 +31,7 @@ dependencies:
 - accelerate-blas
 - accelerate-llvm
 - accelerate-llvm-native
+- MonadRandom
 
 library:
   source-dirs: src

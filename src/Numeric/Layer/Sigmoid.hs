@@ -1,11 +1,15 @@
 module Numeric.Layer.Sigmoid where
 import Numeric.Layer
 import Dependent.Size
+import Numeric.Randomized
 import Numeric.Vector.Sized
 import qualified Numeric.Vector.Sized as Sized
 import GHC.TypeLits(KnownNat,Nat)
 
 newtype Sigmoid (n :: Nat) = Sigmoid ()
+
+instance Randomized (Sigmoid n) where
+  randomized = pure (Sigmoid ())
 
 instance Show (Sigmoid n) where
   showsPrec d (Sigmoid _) = showString "Sigmoid"

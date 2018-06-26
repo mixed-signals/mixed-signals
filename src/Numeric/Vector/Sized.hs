@@ -8,6 +8,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Numeric.Vector.Sized where
 import qualified Prelude
+import Numeric.Randomized
+import Control.Monad.Random(getRandoms)
 import Dependent.Size(Size(..), ShapeSize(..),shapeOf)
 import Prelude(Double,Int,(.))
 import qualified Data.Array.Accelerate as Acc
@@ -20,7 +22,6 @@ import qualified Data.Array.Accelerate.Numeric.LinearAlgebra as BLAS
 #else
 #endif
 
-
 -- | Comuptation of a Sized multi-dimensional array
 data SizedArray (size :: Size)
   = Sized {getArray :: Acc (Array (ShapeOf size) Double)}
@@ -31,6 +32,13 @@ type SizedMatrix n m = SizedArray ('ZZ '::. n '::. m)
 -- | Sized multi-dimensional array (pre-computed)
 data SizedArray' (size :: Size)
   = Sized' {getArray' :: Array (ShapeOf size) Double}
+
+instance forall size . ShapeSize size => Randomized (SizedArray' size) where
+  randomized = do
+    values <- Prelude.fmap (Prelude.take vol) getRandoms
+    Prelude.pure (fromList values)
+      where
+        vol = volume (Proxy :: Proxy size)
 
 instance (ShapeSize size) => Prelude.Show (SizedArray' size) where
   showsPrec n (Sized' arr) = Prelude.showsPrec n arr
@@ -73,7 +81,7 @@ zipWith :: ShapeSize size => (Exp Double -> Exp Double -> Exp Double) -> SizedAr
 zipWith f (Sized x) (Sized y) = Sized (Acc.zipWith f x y)
 
 outer :: forall n m. (KnownNat n, KnownNat m) => SizedVector n -> SizedVector m -> SizedMatrix n m
-outer x y = x' >< y'
+outer x y = x' <> y'
   where
     x' = reshape x :: SizedArray (ZZ ::. n ::. 1)
     y' = reshape y :: SizedArray (ZZ ::. 1 ::. m)
@@ -99,16 +107,16 @@ fromList xs
 (.+.) :: ShapeSize size => SizedArray size -> SizedArray size -> SizedArray size
 Sized v .+. Sized w = Sized (Acc.zipWith (+) v w)
 -- lift1 :: (Exp sh :. Exp Int -> Exp sh :. Exp Int) -> (Exp (sh :. Int) -> Exp (sh :. Int))
-(><)
+(<>)
   :: forall n m k
    . (KnownNat n, KnownNat m, KnownNat k)
   => SizedMatrix n m
   -> SizedMatrix m k
   -> SizedMatrix n k
 #ifdef ACCELERATE_BLAS
-Sized xs >< Sized ys = Sized (xs BLAS.<> ys)
+Sized xs <> Sized ys = Sized (xs BLAS.<> ys)
 #else
-Sized xs >< Sized ys = Sized zs
+Sized xs <> Sized ys = Sized zs
  where
   n           = Prelude.fromInteger (natVal (Proxy :: Proxy n)) :: Int
   m           = Prelude.fromInteger (natVal (Proxy :: Proxy m)) :: Int
@@ -133,7 +141,7 @@ Sized x <# ys = result
   where
      result = Sized (Acc.reshape shape zs')
      shape = Acc.lift (shapeOf result)
-     Sized zs' = xs >< ys
+     Sized zs' = xs <> ys
      xs' = Acc.reshape (Acc.lift (shapeOf xs)) x
      xs = Sized xs' :: SizedMatrix 1 n
 
@@ -142,7 +150,7 @@ xs #> Sized y = result
   where
       result = Sized (Acc.reshape shape zs')
       shape = Acc.lift (shapeOf result)
-      Sized zs' = xs >< ys
+      Sized zs' = xs <> ys
       ys' = Acc.reshape (Acc.lift (shapeOf ys)) y
       ys = Sized ys' :: SizedMatrix m 1
 

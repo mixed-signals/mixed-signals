@@ -1,16 +1,25 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE RankNTypes #-}
 module Main where
 
 import Lib
+import GHC.TypeLits
 import Numeric.Vector.Sized
 import Numeric.Layer.Affine
 import Numeric.Network
 import Numeric.Layer.Affine
 import Numeric.Layer.Sigmoid
+import Numeric.Layer.Convolution
+import Numeric.Layer.Convolution.Unbatched
+import Numeric.Layer.Reshape
+import Numeric.Layer.Identity
 import Numeric.Loss.MeanSquaredError
 import qualified Data.Array.Accelerate.Interpreter as AI
 import qualified Data.Array.Accelerate.LLVM.Native as Native
+import Control.Monad.Random(MonadRandom,evalRandIO,getRandoms)
+import Numeric.Randomized
+import Dependent.Size
 
 v :: SizedVector 3
 v = use (fromList [1, 2, 3]) .+. use (fromList [2, 3, 4])
@@ -31,19 +40,27 @@ zs = use (fromList [1, 2, 3, 4]) :: SizedMatrix 2 2
 
 aff = affine xs v u
 
-net :: Network '[Affine 3 2, Sigmoid 2, Affine 2 2, Sigmoid 2]
-net = Affine ws b :~> Sigmoid () :~> Affine ws' b' :~> Last (Sigmoid ())
-  where
-    ws  = fromList [1, 2, 3, 4, 5, 6]
-    b   = fromList [1, 2]
-    ws' = fromList [-2, 2, 0, 1]
-    b'  = fromList [0, 1]
+type Net a b = Affine 3 a ~> Sigmoid a ~> Affine a b ~> Sigmoid b ~> ()
+network :: MonadRandom m => m (Net 2 2)
+network = randomized
+
+type BatchedConvolve
+  = Identity (ZZ ::. 4 ::. 4 ::. 1)
+  ~~> Strided 2 1 (ZZ ::. 4 ::. 4 ::. 1) (ZZ ::. 3 ::. 3 ::. 1) (ZZ ::. 2 ::. 2)
+  ~> ()
+convolve :: (MonadRandom m) => m BatchedConvolve
+convolve = randomized
 
 main :: IO ()
 main = do
-  print net'
+  net <- evalRandIO network
+  c   <- evalRandIO convolve :: IO (BatchedConvolve)
+  xs  <- evalRandIO (take 16 <$> getRandoms)
+  print c
+  print (run $ predict c (use $ fromList xs))
+  print (training net)
   where
-    net' = train
+    training net = train
       net
       (MeanSquaredError () :: MeanSquaredError 2)
       (use $ fromList [-1, -2, -3])

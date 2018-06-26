@@ -1,7 +1,5 @@
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Numeric.Layer.Affine where
 
 import Dependent.Size
@@ -10,6 +8,9 @@ import Numeric.Vector.Sized
 import qualified Numeric.Vector.Sized as Sized
 import GHC.TypeLits
 import Data.Array.Accelerate.LLVM.Native
+import Numeric.Randomized
+import Data.Proxy
+import Control.Monad.Random
 
 data Affine (n :: Nat) (m :: Nat) = Affine (SizedMatrix' n m) (SizedVector' m)
   deriving (Show)
@@ -38,6 +39,8 @@ affine
   -> SizedVector m
 affine ws b x = (x <# ws) .+. b
 
--- affine_dw dedy = dedw
--- affine_db dedy = dedb
--- affine_dx dedy = dedx
+instance forall n m. (KnownNat n, KnownNat m) => Randomized (Affine n m) where
+  randomized = do
+    ws <- randomized
+    bs <- randomized
+    pure (Affine ws bs)
