@@ -7,11 +7,11 @@ import Dependent.Size
 import qualified Numeric.Vector.Sized as Sized
 import Numeric.Vector.Sized(SizedVector',SizedVector)
 import Data.Proxy
-import GHC.TypeLits(KnownNat,Nat,natVal)
+import GHC.TypeLits(KnownNat,Nat,natVal, type (<=))
 
 newtype MeanSquaredError (n :: Nat) = MeanSquaredError ()
 
-instance forall n. KnownNat n => Loss (ZZ ::. n) (MeanSquaredError n) where
+instance forall n. (KnownNat n, 1 <= n) => Loss (ZZ ::. n) (MeanSquaredError n) where
   -- forward (MeanSquaredError targets) x
   --   = (err, x)
   --     where

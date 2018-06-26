@@ -5,7 +5,7 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 module Numeric.Layer.Convolution where
 
-import Prelude(pure,Show)
+import Prelude(pure,Show(..),showString)
 import Numeric.Randomized
 import Dependent.Size
 import Dependent.Div
@@ -21,7 +21,6 @@ import Numeric.Layer
 data Convolution (stride :: Nat) (samples :: Nat) (width :: Nat) (height :: Nat) (channels :: Nat) (resultWidth :: Nat) (resultHeight :: Nat) (filters :: Nat) (kernelWidth :: Nat) (kernelHeight :: Nat)
   = Convolution { convolutionKernel :: SizedArray' (ZZ ::. filters ::. channels ::. kernelHeight ::. kernelWidth)
     , convolutionBias :: SizedArray' (ZZ ::. filters ::. resultHeight ::. resultWidth) }
-    deriving (Show)
 
 type family Strided stride (samples :: Nat) inputSize outputSize kernelSize = result | result -> stride samples inputSize outputSize kernelSize where
   Strided stride samples (ZZ ::. width ::. height ::. channels) (ZZ ::. resultWidth ::. resultHeight ::. filters) (ZZ ::. kernelWidth ::. kernelHeight)
@@ -38,8 +37,17 @@ type CanConvolve stride n w h c rw rh f kw kh
   , KnownNat f
   , KnownNat kw
   , KnownNat kh
-  , rw ~ (((w - kw + 2 * Half kw) `Div` stride) + 1)
-  , rh ~ (((h - kh + 2 * Half kh) `Div` stride) + 1)
+  , rw ~ (((w + 2 * Half kw - kw) `Div` stride) + 1)
+  , rh ~ (((h + 2 * Half kh - kh) `Div` stride) + 1)
+  , 1 <= n
+  , 1 <= w
+  , 1 <= h
+  , 1 <= c
+  , 1 <= rw
+  , 1 <= rh
+  , 1 <= f
+  , 1 <= kw
+  , 1 <= kh
     )
 instance (CanConvolve stride n w h c rw rh f kw kh) =>  Layer (Convolution stride n w h c rw rh f kw kh) where
   type Inputs (Convolution stride n w h c rw rh f kw kh) = ZZ ::. n ::. c ::. h ::. w
@@ -58,6 +66,9 @@ instance (CanConvolve stride n w h c rw rh f kw kh) =>  Layer (Convolution strid
       (runSized run $ Sized.zipWith (-) (Sized.use kernel) (Sized.use dk))
       (runSized run $ Sized.zipWith (-) (Sized.use bias) (Sized.use db))
 
+
+instance (CanConvolve stride n w h c rw rh f kw kh) =>  Show (Convolution stride n w h c rw rh f kw kh) where
+  showsPrec d (Convolution k b) = showString "Convolution" . showsPrec d (k, b)
 instance (CanConvolve stride n w h c rw rh f kw kh) =>  Randomized (Convolution stride n w h c rw rh f kw kh) where
   randomized = do
     kernel <- randomized

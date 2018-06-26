@@ -13,9 +13,11 @@ import Data.Proxy
 import Control.Monad.Random
 
 data Affine (n :: Nat) (m :: Nat) = Affine (SizedMatrix' n m) (SizedVector' m)
-  deriving (Show)
 
-instance (KnownNat n, KnownNat m) => Layer (Affine n m) where
+instance (KnownNat n, KnownNat m, 1 <= n, 1 <= m) => Show (Affine n m) where
+  showsPrec d (Affine ws b) = showString "Affine" . showsPrec d (ws, b)
+
+instance (KnownNat n, KnownNat m, 1 <= n, 1 <= m) => Layer (Affine n m) where
   type Inputs (Affine n m) = ZZ '::. n
   type Outputs (Affine n m) = ZZ '::. m
   type Tape (Affine n m) = SizedArray (ZZ ::. n)
@@ -32,14 +34,14 @@ instance (KnownNat n, KnownNat m) => Layer (Affine n m) where
       (runSized run $ Sized.zipWith (-) (use b) (use db))
 
 affine
-  :: (KnownNat n, KnownNat m)
+  :: (KnownNat n, KnownNat m, 1 <= n, 1 <= m)
   => SizedMatrix n m
   -> SizedVector m
   -> SizedVector n
   -> SizedVector m
 affine ws b x = (x <# ws) .+. b
 
-instance forall n m. (KnownNat n, KnownNat m) => Randomized (Affine n m) where
+instance forall n m. (KnownNat n, KnownNat m, 1 <= n, 1 <= m) => Randomized (Affine n m) where
   randomized = do
     ws <- randomized
     bs <- randomized
