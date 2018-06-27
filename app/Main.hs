@@ -44,6 +44,8 @@ type Net a b = Affine 3 a ~> Sigmoid a ~> Affine a b ~> Sigmoid b ~> ()
 network :: MonadRandom m => m (Net 2 2)
 network = randomized
 
+
+type Conv = Strided 2 1 (ZZ ::. 1 ::. 1 ::. 1) (ZZ ::. 1 ::. 1 ::. 1) (ZZ ::. 2 ::. 2) ~> ()
 type BatchedConvolve
   = Identity (ZZ ::. 4 ::. 4 ::. 1)
   ~~> Strided 2 1 (ZZ ::. 4 ::. 4 ::. 1) (ZZ ::. 3 ::. 3 ::. 1) (ZZ ::. 2 ::. 2)
@@ -56,6 +58,7 @@ main = do
   net <- evalRandIO network
   c   <- evalRandIO convolve :: IO (BatchedConvolve)
   xs  <- evalRandIO (take 16 <$> getRandoms)
+  evalRandIO (randomized :: MonadRandom m => m Conv) >>= print
   print c
   print (run $ predict c (use $ fromList xs))
   print (training net)

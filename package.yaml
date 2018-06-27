@@ -60,6 +60,15 @@ executables:
     dependencies:
     - mixed-signals
     - accelerate-llvm-native
+    default-extensions:
+      - KindSignatures
+      - TypeOperators
+      - TypeFamilies
+      - DataKinds
+      - GADTs
+      - MultiParamTypeClasses
+      - FlexibleContexts
+      - FlexibleInstances
 
 tests:
   mixed-signals-test:
