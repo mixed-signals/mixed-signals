@@ -31,6 +31,8 @@ dependencies:
 - accelerate-blas
 - accelerate-llvm
 - accelerate-llvm-native
+- MonadRandom
+- ghc-typelits-natnormalise
 
 library:
   source-dirs: src
@@ -59,6 +61,15 @@ executables:
     dependencies:
     - mixed-signals
     - accelerate-llvm-native
+    default-extensions:
+      - KindSignatures
+      - TypeOperators
+      - TypeFamilies
+      - DataKinds
+      - GADTs
+      - MultiParamTypeClasses
+      - FlexibleContexts
+      - FlexibleInstances
 
 tests:
   mixed-signals-test:

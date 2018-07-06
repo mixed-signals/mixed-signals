@@ -1,9 +1,12 @@
+{-# LANGUAGE RankNTypes #-}
 module Numeric.Network where
 import Data.Kind
 import Dependent.Size
 import Numeric.Layer
 import Numeric.Vector.Sized
 import Numeric.Loss
+import Data.Foldable
+import Numeric.Randomized
 
 infixr 0 :~>
 
@@ -17,6 +20,12 @@ type family NetworkInput (layers :: [Type]) where
 data Network (layers :: [Type]) where
   Last :: Layer x => x -> Network '[x]
   (:~>) :: (Layer x, Outputs x ~ Inputs y) => x -> Network (y:xs) -> Network (x : y : xs)
+
+infixr 0 ~>
+type family (~>) a b where
+  a ~> Network xs = Network (a ': xs)
+  a ~> () = Network '[a]
+type Last a = Network '[a]
 
 instance (Show x) => Show (Network '[x]) where
   showsPrec n (Last g) = showsPrec n g
@@ -105,3 +114,9 @@ instance Layer (Network layers) where
   forward = predict'
   backward = backprop
   applyGradient = learn
+
+instance (Layer x, Randomized x) => Randomized (Network '[x]) where
+  randomized = fmap Last randomized
+
+instance (Layer x, Randomized x, Outputs x ~ Inputs y, Randomized (Network (y:xs))) => Randomized (Network (x:y:xs)) where
+  randomized = fmap (:~>) randomized <*> randomized

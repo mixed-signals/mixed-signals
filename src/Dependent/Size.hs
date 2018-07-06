@@ -6,15 +6,22 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE TypeInType #-}
 module Dependent.Size where
 import Data.Kind(Type)
-import GHC.TypeLits(Nat,KnownNat,natVal, type (*))
+import GHC.TypeLits(Nat(..), type Nat(..),KnownNat,natVal, type (*), type (<=), type (+))
 import qualified Data.Array.Accelerate as Acc
 import Data.Array.Accelerate(Shape(..))
 import Data.Proxy(Proxy(..))
 
 infixl 6 ::.
-data Size = ZZ | Size ::. Nat
+
+-- data Size = ZZ | Size ::. (S Nat)
+
+data Size where
+  ZZ :: Size
+  (::.) :: Size -> Nat -> Size
 
 class (Shape (ShapeOf size)
   , Acc.Lift Acc.Exp (Acc.Plain (ShapeOf size))
@@ -37,9 +44,9 @@ instance ShapeSize 'ZZ where
   shapeOf _ = Acc.Z
   volume _ = 1
 
-instance forall size n. (KnownNat n, ShapeSize size) => ShapeSize (size ::. n) where
+instance forall size n. (KnownNat n, ShapeSize size, 1 <= n) => ShapeSize (size '::. n) where
   type ShapeOf (size '::. n) = (ShapeOf size) Acc.:. Int
-  type Volume (size ::. n) = n * Volume size
+  type Volume (size '::. n) = n * Volume size
   volume _ = outerVolume * n
     where
       outerVolume = volume (Proxy :: Proxy size)

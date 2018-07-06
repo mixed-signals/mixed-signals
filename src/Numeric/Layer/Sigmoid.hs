@@ -1,11 +1,15 @@
 module Numeric.Layer.Sigmoid where
 import Numeric.Layer
 import Dependent.Size
+import Numeric.Randomized
 import Numeric.Vector.Sized
 import qualified Numeric.Vector.Sized as Sized
-import GHC.TypeLits(KnownNat,Nat)
+import GHC.TypeLits(KnownNat,Nat, type (<=))
 
 newtype Sigmoid (n :: Nat) = Sigmoid ()
+
+instance Randomized (Sigmoid n) where
+  randomized = pure (Sigmoid ())
 
 instance Show (Sigmoid n) where
   showsPrec d (Sigmoid _) = showString "Sigmoid"
@@ -16,7 +20,7 @@ sigmoid x = 1 / (1 + exp (-x))
 sigmoid' :: Num a => a -> a
 sigmoid' y = (1 - y) * y
 
-instance KnownNat n => Layer (Sigmoid n) where
+instance (KnownNat n, 1 <= n) => Layer (Sigmoid n) where
   type Inputs (Sigmoid n) = ZZ ::. n
   type Outputs (Sigmoid n) = ZZ ::. n
   type Tape (Sigmoid n) = SizedArray (ZZ ::. n)
