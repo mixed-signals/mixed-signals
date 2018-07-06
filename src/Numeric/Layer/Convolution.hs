@@ -18,15 +18,16 @@ import Data.Proxy
 import GHC.TypeLits
 import Numeric.Layer
 
-data Convolution (stride :: Nat) (samples :: Nat) (width :: Nat) (height :: Nat) (channels :: Nat) (resultWidth :: Nat) (resultHeight :: Nat) (filters :: Nat) (kernelWidth :: Nat) (kernelHeight :: Nat)
+data Convolution (stride :: Nat) (samples :: Nat) (width :: Nat) (height :: Nat) (channels :: Nat) (resultWidth :: Nat) (resultHeight :: Nat) (filters :: Nat) (kernelWidth :: Nat) (kernelHeight :: Nat) (widthPadding :: Nat) (heightPadding :: Nat)
   = Convolution { convolutionKernel :: SizedArray' (ZZ ::. filters ::. channels ::. kernelHeight ::. kernelWidth)
     , convolutionBias :: SizedArray' (ZZ ::. filters ::. resultHeight ::. resultWidth) }
 
 type family Strided stride (samples :: Nat) inputSize outputSize kernelSize = result | result -> stride samples inputSize outputSize kernelSize where
   Strided stride samples (ZZ ::. width ::. height ::. channels) (ZZ ::. resultWidth ::. resultHeight ::. filters) (ZZ ::. kernelWidth ::. kernelHeight)
-    = Convolution stride samples width height channels resultWidth resultHeight filters kernelWidth kernelHeight
+    = Convolution stride samples width height channels resultWidth resultHeight filters kernelWidth kernelHeight (Half kernelWidth) (Half kernelHeight)
 
-type CanConvolve stride n w h c rw rh f kw kh
+-- pw' = div (stride*w0 + kw - w1) (2)
+type CanConvolve stride n w h c rw rh f kw kh pw ph
   = (KnownNat stride
   , KnownNat n
   , KnownNat w
@@ -37,8 +38,12 @@ type CanConvolve stride n w h c rw rh f kw kh
   , KnownNat f
   , KnownNat kw
   , KnownNat kh
-  , rw ~ (((w + 2 * Half kw - kw) `Div` stride) + 1)
-  , rh ~ (((h + 2 * Half kh - kh) `Div` stride) + 1)
+  , KnownNat pw
+  , KnownNat ph
+  , rw ~ ((w + 2 * pw - kw) `Div` stride + 1)
+  , rh ~ ((h + 2 * ph - kh) `Div` stride + 1)
+  , w ~ ((rw + 2 * Half (stride * w + kw - rw) - kw) `Div` stride + 1)
+  , h ~ ((rh + 2 * Half (stride * h + kh - rh) - kh) `Div` stride + 1)
   , 1 <= n
   , 1 <= w
   , 1 <= h
@@ -49,11 +54,11 @@ type CanConvolve stride n w h c rw rh f kw kh
   , 1 <= kw
   , 1 <= kh
     )
-instance (CanConvolve stride n w h c rw rh f kw kh) =>  Layer (Convolution stride n w h c rw rh f kw kh) where
-  type Inputs (Convolution stride n w h c rw rh f kw kh) = ZZ ::. n ::. c ::. h ::. w
-  type Outputs (Convolution stride n w h c rw rh f kw kh) = ZZ ::. n ::. f ::. rh ::. rw
-  type Tape (Convolution stride n w h c rw rh f kw kh) = SizedArray (ZZ ::. n ::. c ::. h ::. w)
-  type Gradient (Convolution stride n w h c rw rh f kw kh) = Convolution stride n w h c rw rh f kw kh
+instance (CanConvolve stride n w h c rw rh f kw kh pw ph) =>  Layer (Convolution stride n w h c rw rh f kw kh pw ph) where
+  type Inputs (Convolution stride n w h c rw rh f kw kh pw ph) = ZZ ::. n ::. c ::. h ::. w
+  type Outputs (Convolution stride n w h c rw rh f kw kh pw ph) = ZZ ::. n ::. f ::. rh ::. rw
+  type Tape (Convolution stride n w h c rw rh f kw kh pw ph) = SizedArray (ZZ ::. n ::. c ::. h ::. w)
+  type Gradient (Convolution stride n w h c rw rh f kw kh pw ph) = Convolution stride n w h c rw rh f kw kh pw ph
   forward (Convolution kernel bias) x@(Sized xs) = (y, x)
     where
       kernel' = getArray . Sized.use $ kernel
@@ -67,9 +72,9 @@ instance (CanConvolve stride n w h c rw rh f kw kh) =>  Layer (Convolution strid
       (runSized run $ Sized.zipWith (-) (Sized.use bias) (Sized.use db))
 
 
-instance (CanConvolve stride n w h c rw rh f kw kh) =>  Show (Convolution stride n w h c rw rh f kw kh) where
+instance (CanConvolve stride n w h c rw rh f kw kh pw ph) =>  Show (Convolution stride n w h c rw rh f kw kh pw ph) where
   showsPrec d (Convolution k b) = showString "Convolution" . showsPrec d (k, b)
-instance (CanConvolve stride n w h c rw rh f kw kh) =>  Randomized (Convolution stride n w h c rw rh f kw kh) where
+instance (CanConvolve stride n w h c rw rh f kw kh pw ph) =>  Randomized (Convolution stride n w h c rw rh f kw kh pw ph) where
   randomized = do
     kernel <- randomized
     bias <- randomized

@@ -1,5 +1,6 @@
 {-# LANGUAGE UndecidableInstances #-}
 module Numeric.Layer.Convolution.Unbatched where
+{-
 import Dependent.Size
 import Numeric.Layer
 import Numeric.Layer.Convolution
@@ -17,3 +18,4 @@ instance Layer (Strided stride 1 (ZZ ::. width ::. height ::. channels) (ZZ ::. 
     forward = undefined
     backward = undefined
     applyGradient = undefined
+-}
