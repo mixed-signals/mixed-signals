@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE RankNTypes #-}
+{-# OPTIONS_GHC -fplugin GHC.TypeLits.Normalise #-}
 module Main where
 
 import Lib
@@ -46,18 +47,18 @@ network = randomized
 
 
 type Conv = Strided 2 1 (ZZ ::. 1 ::. 1 ::. 1) (ZZ ::. 1 ::. 1 ::. 1) (ZZ ::. 2 ::. 2) ~> ()
-type BatchedConvolve
-  = Identity (ZZ ::. 4 ::. 4 ::. 1)
-  ~~> Strided 2 1 (ZZ ::. 4 ::. 4 ::. 1) (ZZ ::. 3 ::. 3 ::. 1) (ZZ ::. 2 ::. 2)
+type BatchedConvolve n
+  = Identity (ZZ ::. 4 ::. 4 ::. n)
+  ~~> Strided 2 n (ZZ ::. 4 ::. 4 ::. 1) (ZZ ::. 3 ::. 3 ::. 1) (ZZ ::. 2 ::. 2)
   ~> ()
-convolve :: (MonadRandom m) => m BatchedConvolve
+convolve :: (MonadRandom m, KnownNat n, 1 <= n) => m (BatchedConvolve n)
 convolve = randomized
 
 main :: IO ()
 main = do
   net <- evalRandIO network
-  c   <- evalRandIO convolve :: IO (BatchedConvolve)
-  xs  <- evalRandIO (take 16 <$> getRandoms)
+  c   <- evalRandIO convolve :: IO (BatchedConvolve 3)
+  xs  <- evalRandIO (take (3 * 16) <$> getRandoms)
   evalRandIO (randomized :: MonadRandom m => m Conv) >>= print
   print c
   print (run $ predict c (use $ fromList xs))

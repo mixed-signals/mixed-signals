@@ -32,6 +32,7 @@ dependencies:
 - accelerate-llvm
 - accelerate-llvm-native
 - MonadRandom
+- ghc-typelits-natnormalise
 
 library:
   source-dirs: src
