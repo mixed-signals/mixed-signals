@@ -1,0 +1,4 @@
+steps:
+  - label: ':hammer: Build in stack'
+    command: |
+      stack build
